@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Physics Car Simulator & Kinematics Studio Pro</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#151f32',
+                            950: '#090d16'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js CDN for real-time physics graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+
+    <header class="bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 sticky top-0 z-40 flex flex-wrap items-center justify-between shadow-2xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                <span class="text-xl">🏎️</span>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">Kinematics Studio Pro</h1>
+                <p class="text-xs text-slate-400">Interactive Motion Graphs, Vectors, & Sign Relationships</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3 mt-3 sm:mt-0">
+            <button id="presetsBtn" class="bg-slate-800 hover:bg-slate-700 text-xs px-4 py-2 rounded-xl font-semibold border border-slate-700 transition flex items-center space-x-2 shadow-sm">
+                <span>📚 Preset Scenarios</span>
+            </button>
+            <button id="helpBtn" class="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-xs px-4 py-2 rounded-xl font-bold transition shadow-lg shadow-cyan-600/30">
+                💡 Physics Guide
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-[1700px] w-full mx-auto p-4 sm:p-6 grid grid-cols-1 xl:grid-cols-12 gap-6">
+
+        <!-- Left Column: Simulation & Controls (5 Cols) -->
+        <div class="xl:col-span-5 flex flex-col space-y-6">
+
+            <!-- Visual Road & High-End Car Animation Box -->
+            <div class="bg-slate-900/90 backdrop-blur-xl rounded-3xl p-5 border border-slate-800 shadow-2xl relative overflow-hidden flex flex-col">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Live Highway Simulation</h2>
+                    </div>
+                    <span id="liveStatusBadge" class="px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-inner">Constant Velocity</span>
+                </div>
+
+                <!-- Realistic Road Canvas / SVG Container -->
+                <div class="relative w-full h-52 bg-slate-950 rounded-2xl overflow-hidden border border-slate-800/80 flex items-center shadow-inner">
+                    <!-- Perspective grid lines -->
+                    <div class="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-30"></div>
+                    
+                    <!-- Highway Dashed Center Line -->
+                    <div class="absolute w-full h-1 border-b-2 border-dashed border-slate-700 top-1/2 -translate-y-1/2"></div>
+                    
+                    <!-- Distance markers on road -->
+                    <div id="roadMarkers" class="absolute inset-0 flex items-center pointer-events-none"></div>
+
+                    <!-- Enhanced 3D Styled Car Sprite with smooth transition -->
+                    <div id="carSprite" class="absolute left-1/4 bottom-16 transition-transform duration-75 flex flex-col items-center z-20">
+                        <div class="relative bg-cyan-500/90 backdrop-blur-md text-slate-950 px-3 py-1 rounded-lg font-extrabold text-xs shadow-xl mb-1.5 flex items-center space-x-1.5 whitespace-nowrap border border-cyan-300/40">
+                            <span>🏎️ Car A</span>
+                            <span id="carVelTag" class="text-[10px] font-mono bg-slate-950 text-cyan-300 px-1.5 py-0.5 rounded">10.0 m/s</span>
+                        </div>
+                        <!-- Detailed SVG Car with spinning wheel animation when moving -->
+                        <svg id="carSvg" class="w-24 h-12 text-cyan-400 drop-shadow-[0_0_14px_rgba(34,211,238,0.7)] transition-transform" viewBox="0 0 120 60" fill="currentColor">
+                            <path d="M15,35 L25,18 L85,18 L105,35 L112,38 C116,39 118,42 118,46 L118,48 C118,51 115,54 112,54 L98,54 C98,47 92,42 85,42 C78,42 72,47 72,54 L48,54 C48,47 42,42 35,42 C28,42 22,47 22,54 L8,54 C5,54 2,51 2,48 L2,46 C2,42 5,39 8,38 Z" fill="#0ea5e9"/>
+                            <path d="M30,22 L45,10 L80,10 L92,22 Z" fill="#38bdf8" opacity="0.8"/>
+                            <rect x="52" y="12" width="16" height="10" rx="2" fill="#0284c7" opacity="0.9"/>
+                            <!-- Headlights -->
+                            <ellipse cx="112" cy="42" rx="3" ry="2" fill="#fef08a" class="animate-pulse"/>
+                            <!-- Wheels -->
+                            <circle cx="35" cy="50" r="8" fill="#090d16" stroke="#38bdf8" stroke-width="3"/>
+                            <circle cx="35" cy="50" r="3" fill="#94a3b8"/>
+                            <circle cx="85" cy="50" r="8" fill="#090d16" stroke="#38bdf8" stroke-width="3"/>
+                            <circle cx="85" cy="50" r="3" fill="#94a3b8"/>
+                        </svg>
+                    </div>
+
+                    <!-- Velocity Vector Arrow Overlay -->
+                    <div id="velocityVectorOverlay" class="absolute top-3 left-4 text-xs font-mono bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-xl shadow-lg flex items-center space-x-2">
+                        <span class="text-slate-400">Direction:</span>
+                        <span id="directionIndicatorText" class="text-cyan-400 font-bold">+ve (Forward)</span>
+                    </div>
+                </div>
+
+                <!-- Telemetry Dashboard Cards -->
+                <div class="grid grid-cols-3 gap-3 mt-4">
+                    <div class="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800/80 text-center shadow-inner">
+                        <span class="text-[11px] text-slate-400 block font-semibold uppercase tracking-wider">Position ($s$)</span>
+                        <span id="telemetryPos" class="text-xl font-extrabold font-mono text-cyan-400 mt-0.5 block">0.00 m</span>
+                    </div>
+                    <div class="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800/80 text-center shadow-inner">
+                        <span class="text-[11px] text-slate-400 block font-semibold uppercase tracking-wider">Velocity ($v$)</span>
+                        <span id="telemetryVel" class="text-xl font-extrabold font-mono text-emerald-400 mt-0.5 block">0.00 m/s</span>
+                    </div>
+                    <div class="bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800/80 text-center shadow-inner">
+                        <span class="text-[11px] text-slate-400 block font-semibold uppercase tracking-wider">Acceleration ($a$)</span>
+                        <span id="telemetryAcc" class="text-xl font-extrabold font-mono text-amber-400 mt-0.5 block">0.00 m/s²</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/90 backdrop-blur-xl rounded-3xl p-5 border border-slate-800 shadow-2xl flex flex-col space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Simulation Controls</h2>
+                    <!-- Mode Selector Tabs -->
+                    <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button id="modeManual" class="px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-600 text-white transition shadow">Manual</button>
+                        <button id="modePreset" class="px-3 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition">Scenarios</button>
+                    </div>
+                </div>
+
+                <!-- Play / Pause / Reset Buttons -->
+                <div class="flex items-center space-x-3">
+                    <button id="playPauseBtn" class="flex-1 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 text-slate-950 font-extrabold py-3 px-4 rounded-2xl transition shadow-xl shadow-cyan-600/30 flex items-center justify-center space-x-2">
+                        <svg id="playIcon" class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        <span id="playPauseText">Play Simulation</span>
+                    </button>
+                    <button id="resetBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 px-5 rounded-2xl border border-slate-700 transition shadow-sm">
+                        Reset
+                    </button>
+                </div>
+
+                <!-- Manual Sliders Box -->
+                <div id="manualControlsBox" class="space-y-4 pt-1">
+                    <div class="bg-slate-950/40 p-4 rounded-2xl border border-slate-800/80 space-y-2">
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span class="text-slate-300">Target Acceleration ($a$)</span>
+                            <span id="accSliderVal" class="text-amber-400 font-mono font-bold">0.0 m/s²</span>
+                        </div>
+                        <input id="accSlider" type="range" min="-5" max="5" step="0.5" value="0" class="w-full accent-amber-400 cursor-pointer bg-slate-800 rounded-lg h-2.5">
+                        <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                            <span>-5 m/s² (Braking/Rev)</span>
+                            <span>0</span>
+                            <span>+5 m/s² (Accel)</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/40 p-4 rounded-2xl border border-slate-800/80 space-y-2">
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span class="text-slate-300">Initial Velocity ($v_0$)</span>
+                            <span id="velSliderVal" class="text-emerald-400 font-mono font-bold">10.0 m/s</span>
+                        </div>
+                        <input id="velSlider" type="range" min="-20" max="20" step="1" value="10" class="w-full accent-emerald-400 cursor-pointer bg-slate-800 rounded-lg h-2.5">
+                        <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                            <span>-20 m/s (Reverse)</span>
+                            <span>0</span>
+                            <span>+20 m/s (Forward)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scenario Presets Box (Hidden by default) -->
+                <div id="scenarioControlsBox" class="hidden space-y-3 pt-1">
+                    <p class="text-xs text-slate-400">Choose a real-world driving condition from physics class:</p>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button class="scenario-btn text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 transition shadow-sm group" data-acc="2" data-vel="0">
+                            <div class="font-bold text-xs text-cyan-400 group-hover:text-cyan-300">Speeding Up (Fwd)</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">+vel, +acc</div>
+                        </button>
+                        <button class="scenario-btn text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 transition shadow-sm group" data-acc="-2" data-vel="10">
+                            <div class="font-bold text-xs text-amber-400 group-hover:text-amber-300">Slowing Down (Brake)</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">+vel, -acc</div>
+                        </button>
+                        <button class="scenario-btn text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 transition shadow-sm group" data-acc="2" data-vel="-10">
+                            <div class="font-bold text-xs text-purple-400 group-hover:text-purple-300">Slowing Down (Rev)</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">-vel, +acc</div>
+                        </button>
+                        <button class="scenario-btn text-left p-3 rounded-2xl bg-slate-950 hover:bg-slate-800 border border-slate-800 transition shadow-sm group" data-acc="-2" data-vel="-5">
+                            <div class="font-bold text-xs text-rose-400 group-hover:text-rose-300">Speeding Up (Rev)</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">-vel, -acc</div>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="bg-slate-900/90 backdrop-blur-xl rounded-3xl p-5 border border-slate-800 shadow-2xl">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400">📋 Motion Sign Rule Reference</h2>
+                    <span class="text-[10px] bg-indigo-500/10 text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-500/20 font-mono">Class Notes</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-950 text-slate-400 uppercase text-[10px]">
+                            <tr>
+                                <th class="p-2.5 rounded-l-xl">Velocity ($v$)</th>
+                                <th class="p-2.5">Acceleration ($a$)</th>
+                                <th class="p-2.5 rounded-r-xl">Situation</th>
+                            </tr>
+                        </thead>
+                        <tbody id="signTableBody" class="divide-y divide-slate-800/60 font-mono">
+                            <tr class="transition hover:bg-slate-800/40" data-v="+" data-a="+">
+                                <td class="p-2.5 text-cyan-400 font-bold">+ve (Forward)</td>
+                                <td class="p-2.5 text-amber-400 font-bold">+ve</td>
+                                <td class="p-2.5 font-sans font-semibold text-emerald-400">Speeding up</td>
+                            </tr>
+                            <tr class="transition hover:bg-slate-800/40" data-v="+" data-a="-">
+                                <td class="p-2.5 text-cyan-400 font-bold">+ve (Forward)</td>
+                                <td class="p-2.5 text-amber-400 font-bold">-ve</td>
+                                <td class="p-2.5 font-sans font-semibold text-amber-400">Slowing down</td>
+                            </tr>
+                            <tr class="transition hover:bg-slate-800/40" data-v="-" data-a="+">
+                                <td class="p-2.5 text-cyan-400 font-bold">-ve (Reverse)</td>
+                                <td class="p-2.5 text-amber-400 font-bold">+ve</td>
+                                <td class="p-2.5 font-sans font-semibold text-amber-400">Slowing down</td>
+                            </tr>
+                            <tr class="transition hover:bg-slate-800/40" data-v="-" data-a="-">
+                                <td class="p-2.5 text-cyan-400 font-bold">-ve (Reverse)</td>
+                                <td class="p-2.5 text-amber-400 font-bold">-ve</td>
+                                <td class="p-2.5 font-sans font-semibold text-emerald-400">Speeding up</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Column: Larger Graphs & Telemetry Log (7 Cols) -->
+        <div class="xl:col-span-7 flex flex-col space-y-6">
+
+            <div class="bg-slate-900/90 backdrop-blur-xl rounded-3xl p-6 border border-slate-800 shadow-2xl flex flex-col space-y-5">
+                <div class="flex flex-wrap justify-between items-center gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-100">Kinematics Graph Workstation</h2>
+                        <p class="text-xs text-slate-400">Switch between displacement, velocity, and acceleration timelines</p>
+                    </div>
+                    <button id="clearGraphsBtn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl border border-slate-700 transition font-semibold shadow-sm">
+                        Clear Traces
+                    </button>
+                </div>
+
+                <!-- Graph Tab Selector Buttons -->
+                <div class="grid grid-cols-3 gap-3">
+                    <button class="graph-tab-btn py-2.5 px-4 rounded-2xl text-xs font-bold bg-cyan-600 text-slate-950 transition shadow-lg shadow-cyan-600/30 flex items-center justify-center space-x-2" data-target="st">
+                        <span>📈</span>
+                        <span>Displacement ($s-t$)</span>
+                    </button>
+                    <button class="graph-tab-btn py-2.5 px-4 rounded-2xl text-xs font-bold bg-slate-950 text-slate-400 hover:text-white transition border border-slate-800 flex items-center justify-center space-x-2" data-target="vt">
+                        <span>📊</span>
+                        <span>Velocity ($v-t$)</span>
+                    </button>
+                    <button class="graph-tab-btn py-2.5 px-4 rounded-2xl text-xs font-bold bg-slate-950 text-slate-400 hover:text-white transition border border-slate-800 flex items-center justify-center space-x-2" data-target="at">
+                        <span>📉</span>
+                        <span>Acceleration ($a-t$)</span>
+                    </button>
+                </div>
+
+                <!-- Large Graph Canvas Container (Height increased to 96 / 384px) -->
+                <div class="relative w-full h-[420px] bg-slate-950 rounded-2xl p-4 border border-slate-800 shadow-inner flex items-center justify-center">
+                    <canvas id="physicsChart"></canvas>
+                </div>
+
+                <!-- Dynamic Insight & Slope / Area Box -->
+                <div id="graphInsightBox" class="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 transition-all shadow-inner">
+                    <div class="flex items-start space-x-4">
+                        <div id="insightIcon" class="p-3 bg-cyan-500/10 text-cyan-400 rounded-2xl font-bold text-xl mt-0.5 border border-cyan-500/20">📈</div>
+                        <div class="flex-1">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <h3 id="insightTitle" class="text-sm font-bold text-slate-100">Displacement-Time ($s-t$) Graph Analysis</h3>
+                                <span id="insightMathTag" class="text-xs font-mono bg-slate-900 text-cyan-300 px-3 py-1 rounded-xl border border-slate-800 font-bold">Slope = Velocity ($v$)</span>
+                            </div>
+                            <p id="insightDesc" class="text-xs text-slate-300 mt-2 leading-relaxed">
+                                The slope (gradient) of a displacement-time graph at any specific instant represents the <strong class="text-cyan-400">Velocity</strong> of the car. A steeper curve indicates faster motion; a horizontal line means stationary ($v = 0$).
+                            </p>
+                            <div class="mt-4 pt-3 border-t border-slate-900 flex flex-wrap items-center justify-between text-xs gap-2">
+                                <span class="text-slate-400">Current Value: <strong id="insightCurrentVal" class="text-cyan-400 font-mono text-sm">0.00 m</strong></span>
+                                <span class="text-slate-400">Calculated Calculus Value: <strong id="insightCalcVal" class="text-emerald-400 font-mono text-sm">v = 0.00 m/s</strong></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="bg-slate-900/90 backdrop-blur-xl rounded-3xl p-6 border border-slate-800 shadow-2xl flex flex-col space-y-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-base">📝</span>
+                        <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Live Simulation Log & Telemetry</h2>
+                    </div>
+                    <button id="clearLogBtn" class="text-xs text-slate-400 hover:text-slate-200 bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 transition">
+                        Clear Log
+                    </button>
+                </div>
+                <!-- Log Container with custom scrollbar -->
+                <div id="telemetryLogContainer" class="w-full h-44 bg-slate-950 rounded-2xl p-4 border border-slate-800 font-mono text-xs text-slate-300 overflow-y-auto custom-scrollbar space-y-1.5 shadow-inner">
+                    <div class="text-slate-500">[0.0s] Simulator initialized successfully. Ready to run.</div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/90 backdrop-blur-xl rounded-3xl p-6 border border-slate-800 shadow-2xl space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-400">⚡ Master Guide: Slopes & Areas</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Slopes Card -->
+                    <div class="bg-slate-950/60 p-4.5 rounded-2xl border border-slate-800/80 space-y-2.5">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">📐</span>
+                            <h3 class="font-bold text-xs text-slate-200 uppercase tracking-wider">What do GRAPH SLOPES mean?</h3>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2 list-disc list-inside">
+                            <li><strong class="text-cyan-400 font-mono">$s-t$ graph slope</strong> = <span class="text-white font-semibold">Velocity ($v$)</span></li>
+                            <li><strong class="text-emerald-400 font-mono">$v-t$ graph slope</strong> = <span class="text-white font-semibold">Acceleration ($a$)</span></li>
+                            <li><span class="text-slate-400 italic">Curved $s-t$ line</span> = Changing velocity (non-zero acceleration).</li>
+                        </ul>
+                    </div>
+
+                    <!-- Areas Card -->
+                    <div class="bg-slate-950/60 p-4.5 rounded-2xl border border-slate-800/80 space-y-2.5">
+                        <div class="flex items-center space-x-2.5">
+                            <span class="text-xl">📊</span>
+                            <h3 class="font-bold text-xs text-slate-200 uppercase tracking-wider">What do CURVE AREAS mean?</h3>
+                        </div>
+                        <ul class="text-xs text-slate-300 space-y-2 list-disc list-inside">
+                            <li><strong class="text-emerald-400 font-mono">Area under $v-t$ graph</strong> = <span class="text-white font-semibold">Displacement ($\Delta s$)</span></li>
+                            <li><strong class="text-amber-400 font-mono">Area under $a-t$ graph</strong> = <span class="text-white font-semibold">Change in velocity ($\Delta v$)</span></li>
+                            <li><span class="text-slate-400 italic">Area below time axis</span> = Negative contribution (reverse motion).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <div id="helpModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 max-w-lg w-full rounded-3xl p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-100 flex items-center space-x-2">
+                    <span>💡 Physics Kinematics Guide</span>
+                </h3>
+                <button id="closeHelpBtn" class="text-slate-400 hover:text-white font-bold text-lg px-2 py-1">&times;</button>
+            </div>
+            <div class="text-xs text-slate-300 space-y-3 leading-relaxed">
+                <p>Welcome to the enhanced Kinematics Studio Pro! This web application bridges real-world car motion with <strong class="text-cyan-400">Displacement ($s$)</strong>, <strong class="text-emerald-400">Velocity ($v$)</strong>, and <strong class="text-amber-400">Acceleration ($a$)</strong> graphs.</p>
+                <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-slate-200">Key Sign Rules:</h4>
+                    <ul class="list-disc list-inside space-y-1.5 text-slate-400">
+                        <li><strong class="text-emerald-400">+vel & +acc:</strong> Moving forward, speeding up.</li>
+                        <li><strong class="text-amber-400">+vel & -acc:</strong> Moving forward, slowing down (braking).</li>
+                        <li><strong class="text-amber-400">-vel & +acc:</strong> Reversing, decelerating backward.</li>
+                        <li><strong class="text-emerald-400">-vel & -acc:</strong> Reversing, speeding up backward.</li>
+                    </ul>
+                </div>
+                <p>Use the manual sliders or preset scenarios to experiment and observe live log updates!</p>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button id="closeHelpBtnBottom" class="bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-extrabold px-5 py-2.5 rounded-xl text-xs transition shadow-lg shadow-cyan-600/30">Got it!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Physics Simulation State Variables
+        let state = {
+            time: 0,
+            position: 0,
+            velocity: 10,
+            acceleration: 0,
+            isPlaying: false,
+            activeGraphTab: 'st', // 'st', 'vt', 'at'
+            controlMode: 'manual', // 'manual', 'preset'
+            timeHistory: [],
+            posHistory: [],
+            velHistory: [],
+            accHistory: []
+        };
+
+        const maxHistoryPoints = 150;
+        let simulationInterval = null;
+        let logCounter = 0;
+
+        // DOM Elements
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playPauseText = document.getElementById('playPauseText');
+        const playIcon = document.getElementById('playIcon');
+        const resetBtn = document.getElementById('resetBtn');
+        const clearGraphsBtn = document.getElementById('clearGraphsBtn');
+        const clearLogBtn = document.getElementById('clearLogBtn');
+        const telemetryLogContainer = document.getElementById('telemetryLogContainer');
+        
+        const accSlider = document.getElementById('accSlider');
+        const accSliderVal = document.getElementById('accSliderVal');
+        const velSlider = document.getElementById('velSlider');
+        const velSliderVal = document.getElementById('velSliderVal');
+
+        const telemetryPos = document.getElementById('telemetryPos');
+        const telemetryVel = document.getElementById('telemetryVel');
+        const telemetryAcc = document.getElementById('telemetryAcc');
+        const carSprite = document.getElementById('carSprite');
+        const carVelTag = document.getElementById('carVelTag');
+        const liveStatusBadge = document.getElementById('liveStatusBadge');
+        const directionIndicatorText = document.getElementById('directionIndicatorText');
+
+        const modeManual = document.getElementById('modeManual');
+        const modePreset = document.getElementById('modePreset');
+        const manualControlsBox = document.getElementById('manualControlsBox');
+        const scenarioControlsBox = document.getElementById('scenarioControlsBox');
+
+        const graphTabBtns = document.querySelectorAll('.graph-tab-btn');
+        const scenarioBtns = document.querySelectorAll('.scenario-btn');
+
+        // Insight Elements
+        const insightTitle = document.getElementById('insightTitle');
+        const insightMathTag = document.getElementById('insightMathTag');
+        const insightDesc = document.getElementById('insightDesc');
+        const insightCurrentVal = document.getElementById('insightCurrentVal');
+        const insightCalcVal = document.getElementById('insightCalcVal');
+        const insightIcon = document.getElementById('insightIcon');
+
+        // Modal Elements
+        const helpBtn = document.getElementById('helpBtn');
+        const presetsBtn = document.getElementById('presetsBtn');
+        const helpModal = document.getElementById('helpModal');
+        const closeHelpBtn = document.getElementById('closeHelpBtn');
+        const closeHelpBtnBottom = document.getElementById('closeHelpBtnBottom');
+
+        // Add Log Message Helper
+        function addLog(message, type = 'info') {
+            logCounter++;
+            const timeStr = state.time.toFixed(1);
+            const div = document.createElement('div');
+            div.className = 'leading-relaxed flex items-start space-x-2';
+            
+            let colorClass = 'text-slate-400';
+            if (type === 'accent') colorClass = 'text-cyan-400 font-semibold';
+            if (type === 'warning') colorClass = 'text-amber-400 font-semibold';
+            if (type === 'success') colorClass = 'text-emerald-400 font-semibold';
+
+            div.innerHTML = `<span class="text-slate-600 font-mono">[${timeStr}s]</span> <span class="${colorClass}">${message}</span>`;
+            telemetryLogContainer.prepend(div);
+            
+            // Limit log entries
+            if (telemetryLogContainer.children.length > 60) {
+                telemetryLogContainer.removeChild(telemetryLogContainer.lastChild);
+            }
+        }
+
+        // Initialize Chart.js with Dark Modern Aesthetic
+        const ctx = document.getElementById('physicsChart').getContext('2d');
+        let physicsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Displacement s(t) [m]',
+                    data: [],
+                    borderColor: '#22d3ee',
+                    backgroundColor: 'rgba(34, 211, 238, 0.12)',
+                    borderWidth: 3.5,
+                    pointRadius: 0,
+                    tension: 0.25,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(30, 41, 59, 0.6)' },
+                        ticks: { color: '#64748b', font: { size: 11, family: 'JetBrains Mono' } },
+                        title: { display: true, text: 'Time t (s)', color: '#94a3b8', font: { size: 12, weight: 'bold' } }
+                    },
+                    y: {
+                        grid: { color: 'rgba(30, 41, 59, 0.6)' },
+                        ticks: { color: '#64748b', font: { size: 11, family: 'JetBrains Mono' } },
+                        title: { display: true, text: 'Displacement (m)', color: '#94a3b8', font: { size: 12, weight: 'bold' } }
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#f8fafc', font: { size: 12, weight: 'bold', family: 'Plus Jakarta Sans' } } }
+                }
+            }
+        });
+
+        // Initialize Road Markers
+        function initRoadMarkers() {
+            const container = document.getElementById('roadMarkers');
+            container.innerHTML = '';
+            for (let i = -50; i <= 50; i += 10) {
+                const marker = document.createElement('div');
+                marker.className = 'absolute flex flex-col items-center text-[10px] text-slate-500 font-mono';
+                marker.style.left = `${(i + 50)}%`;
+                marker.innerHTML = `<div class="h-4 w-px bg-slate-700/80 mb-1"></div><span>${i}m</span>`;
+                container.appendChild(marker);
+            }
+        }
+
+        // Reset Simulation State
+        function resetSimulation() {
+            state.time = 0;
+            state.position = 0;
+            state.velocity = parseFloat(velSlider.value);
+            state.acceleration = parseFloat(accSlider.value);
+            state.timeHistory = [0];
+            state.posHistory = [0];
+            state.velHistory = [state.velocity];
+            state.accHistory = [state.acceleration];
+            addLog(`Simulation reset. v₀ = ${state.velocity} m/s, a = ${state.acceleration} m/s²`, 'accent');
+            updateUI();
+        }
+
+        // Update UI components
+        function updateUI() {
+            telemetryPos.textContent = state.position.toFixed(2) + ' m';
+            telemetryVel.textContent = state.velocity.toFixed(2) + ' m/s';
+            telemetryAcc.textContent = state.acceleration.toFixed(2) + ' m/s²';
+            carVelTag.textContent = state.velocity.toFixed(1) + ' m/s';
+
+            // Update car sprite position on road (mapping -25m to +25m to 10% to 90% left)
+            let percent = 25 + (state.position % 50) / 50 * 50;
+            if (percent < 5) percent = 5;
+            if (percent > 95) percent = 95;
+            carSprite.style.left = `${percent}%`;
+
+            // Direction indicator
+            if (state.velocity > 0) {
+                directionIndicatorText.innerHTML = `<span class="text-cyan-400 font-bold">+ve (Forward)</span>`;
+            } else if (state.velocity < 0) {
+                directionIndicatorText.innerHTML = `<span class="text-purple-400 font-bold">-ve (Reverse)</span>`;
+            } else {
+                directionIndicatorText.innerHTML = `<span class="text-slate-400 font-bold">Stationary</span>`;
+            }
+
+            // Status badge classification
+            if (Math.abs(state.velocity) < 0.05 && Math.abs(state.acceleration) < 0.05) {
+                liveStatusBadge.textContent = 'Stationary';
+                liveStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300 border border-slate-700 shadow-inner';
+            } else if ((state.velocity > 0 && state.acceleration > 0) || (state.velocity < 0 && state.acceleration < 0)) {
+                liveStatusBadge.textContent = 'Speeding Up';
+                liveStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-inner';
+            } else {
+                liveStatusBadge.textContent = 'Slowing Down';
+                liveStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-inner';
+            }
+
+            // Highlight corresponding row in sign table
+            document.querySelectorAll('#signTableBody tr').forEach(row => {
+                let rv = row.getAttribute('data-v');
+                let ra = row.getAttribute('data-a');
+                let matchesV = (rv === '+' && state.velocity >= 0) || (rv === '-' && state.velocity < 0);
+                let matchesA = (ra === '+' && state.acceleration >= 0) || (ra === '-' && state.acceleration < 0);
+                if (matchesV && matchesA && Math.abs(state.velocity) >= 0.05) {
+                    row.className = 'bg-indigo-600/15 border-l-4 border-indigo-500 transition';
+                } else {
+                    row.className = 'transition hover:bg-slate-800/40';
+                }
+            });
+
+            // Update Insight Box current metrics
+            if (state.activeGraphTab === 'st') {
+                insightCurrentVal.textContent = state.position.toFixed(2) + ' m';
+                insightCalcVal.textContent = 'v = ' + state.velocity.toFixed(2) + ' m/s (Slope)';
+            } else if (state.activeGraphTab === 'vt') {
+                insightCurrentVal.textContent = state.velocity.toFixed(2) + ' m/s';
+                insightCalcVal.textContent = 'a = ' + state.acceleration.toFixed(2) + ' m/s² (Slope)';
+            } else {
+                insightCurrentVal.textContent = state.acceleration.toFixed(2) + ' m/s²';
+                insightCalcVal.textContent = 'Δv = Area under a-t';
+            }
+
+            updateChartData();
+        }
+
+        // Update Chart Data & Configuration
+        function updateChartData() {
+            physicsChart.data.labels = state.timeHistory.map(t => t.toFixed(1) + 's');
+            
+            if (state.activeGraphTab === 'st') {
+                physicsChart.data.datasets[0].label = 'Displacement s(t) [m]';
+                physicsChart.data.datasets[0].data = state.posHistory;
+                physicsChart.data.datasets[0].borderColor = '#22d3ee';
+                physicsChart.data.datasets[0].backgroundColor = 'rgba(34, 211, 238, 0.12)';
+                physicsChart.options.scales.y.title.text = 'Displacement (m)';
+            } else if (state.activeGraphTab === 'vt') {
+                physicsChart.data.datasets[0].label = 'Velocity v(t) [m/s]';
+                physicsChart.data.datasets[0].data = state.velHistory;
+                physicsChart.data.datasets[0].borderColor = '#34d399';
+                physicsChart.data.datasets[0].backgroundColor = 'rgba(52, 211, 153, 0.12)';
+                physicsChart.options.scales.y.title.text = 'Velocity (m/s)';
+            } else if (state.activeGraphTab === 'at') {
+                physicsChart.data.datasets[0].label = 'Acceleration a(t) [m/s²]';
+                physicsChart.data.datasets[0].data = state.accHistory;
+                physicsChart.data.datasets[0].borderColor = '#fbbf24';
+                physicsChart.data.datasets[0].backgroundColor = 'rgba(251, 191, 36, 0.12)';
+                physicsChart.options.scales.y.title.text = 'Acceleration (m/s²)';
+            }
+            physicsChart.update('none');
+        }
+
+        // Simulation Loop Step (dt = 0.05s)
+        function stepSimulation() {
+            const dt = 0.05;
+            state.time += dt;
+            
+            // Kinematics equations: s = s0 + v0*dt + 0.5*a*dt^2, v = v0 + a*dt
+            state.position += state.velocity * dt + 0.5 * state.acceleration * dt * dt;
+            state.velocity += state.acceleration * dt;
+
+            // Keep histories bounded
+            state.timeHistory.push(state.time);
+            state.posHistory.push(state.position);
+            state.velHistory.push(state.velocity);
+            state.accHistory.push(state.acceleration);
+
+            if (state.timeHistory.length > maxHistoryPoints) {
+                state.timeHistory.shift();
+                state.posHistory.shift();
+                state.velHistory.shift();
+                state.accHistory.shift();
+            }
+
+            // Periodic log entry every 2 seconds
+            if (Math.abs(state.time % 2.0) < 0.03) {
+                addLog(`Position: ${state.position.toFixed(1)}m | Velocity: ${state.velocity.toFixed(1)}m/s | Accel: ${state.acceleration.toFixed(1)}m/s²`);
+            }
+
+            updateUI();
+        }
+
+        // Play / Pause Toggle
+        playPauseBtn.addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            if (state.isPlaying) {
+                playPauseText.textContent = 'Pause Simulation';
+                playIcon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+                playPauseBtn.className = 'flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-slate-950 font-extrabold py-3 px-4 rounded-2xl transition shadow-xl shadow-amber-600/30 flex items-center justify-center space-x-2';
+                simulationInterval = setInterval(stepSimulation, 50);
+                addLog('Simulation started.', 'success');
+            } else {
+                playPauseText.textContent = 'Play Simulation';
+                playIcon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+                playPauseBtn.className = 'flex-1 bg-gradient-to-r from-cyan-600 to-sky-600 hover:from-cyan-500 hover:to-sky-500 text-slate-950 font-extrabold py-3 px-4 rounded-2xl transition shadow-xl shadow-cyan-600/30 flex items-center justify-center space-x-2';
+                clearInterval(simulationInterval);
+                addLog('Simulation paused.', 'warning');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            if (state.isPlaying) playPauseBtn.click();
+            resetSimulation();
+        });
+
+        clearGraphsBtn.addEventListener('click', () => {
+            state.timeHistory = [state.time];
+            state.posHistory = [state.position];
+            state.velHistory = [state.velocity];
+            state.accHistory = [state.acceleration];
+            updateChartData();
+            addLog('Graph traces cleared.', 'accent');
+        });
+
+        clearLogBtn.addEventListener('click', () => {
+            telemetryLogContainer.innerHTML = '<div class="text-slate-500">[Log cleared]</div>';
+        });
+
+        // Sliders event listeners
+        accSlider.addEventListener('input', (e) => {
+            state.acceleration = parseFloat(e.target.value);
+            accSliderVal.textContent = state.acceleration.toFixed(1) + ' m/s²';
+            if (!state.isPlaying) updateUI();
+            addLog(`Acceleration adjusted to ${state.acceleration.toFixed(1)} m/s²`, 'warning');
+        });
+
+        velSlider.addEventListener('input', (e) => {
+            state.velocity = parseFloat(e.target.value);
+            velSliderVal.textContent = state.velocity.toFixed(1) + ' m/s';
+            if (!state.isPlaying) {
+                state.velHistory[state.velHistory.length - 1] = state.velocity;
+                updateUI();
+            }
+            addLog(`Initial velocity adjusted to ${state.velocity.toFixed(1)} m/s`, 'success');
+        });
+
+        // Mode Switching
+        modeManual.addEventListener('click', () => {
+            state.controlMode = 'manual';
+            modeManual.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-600 text-white transition shadow';
+            modePreset.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition';
+            manualControlsBox.classList.remove('hidden');
+            scenarioControlsBox.classList.add('hidden');
+        });
+
+        modePreset.addEventListener('click', () => {
+            state.controlMode = 'preset';
+            modePreset.className = 'px-3 py-1.5 text-xs font-bold rounded-lg bg-cyan-600 text-white transition shadow';
+            modeManual.className = 'px-3 py-1.5 text-xs font-bold rounded-lg text-slate-400 hover:text-white transition';
+            scenarioControlsBox.classList.remove('hidden');
+            manualControlsBox.classList.add('hidden');
+        });
+
+        // Scenario Preset Buttons
+        scenarioBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                let acc = parseFloat(btn.getAttribute('data-acc'));
+                let vel = parseFloat(btn.getAttribute('data-vel'));
+                accSlider.value = acc;
+                velSlider.value = vel;
+                accSliderVal.textContent = acc.toFixed(1) + ' m/s²';
+                velSliderVal.textContent = vel.toFixed(1) + ' m/s';
+                state.acceleration = acc;
+                state.velocity = vel;
+                addLog(`Loaded scenario: v₀ = ${vel} m/s, a = ${acc} m/s²`, 'accent');
+                if (!state.isPlaying) {
+                    resetSimulation();
+                }
+            });
+        });
+
+        // Graph Tab Switching & Insight text updates
+        graphTabBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                graphTabBtns.forEach(b => {
+                    b.className = 'graph-tab-btn py-2.5 px-4 rounded-2xl text-xs font-bold bg-slate-950 text-slate-400 hover:text-white transition border border-slate-800 flex items-center justify-center space-x-2';
+                });
+                btn.className = 'graph-tab-btn py-2.5 px-4 rounded-2xl text-xs font-bold bg-cyan-600 text-slate-950 transition shadow-lg shadow-cyan-600/30 flex items-center justify-center space-x-2';
+                
+                const target = btn.getAttribute('data-target');
+                state.activeGraphTab = target;
+
+                if (target === 'st') {
+                    insightIcon.textContent = '📈';
+                    insightTitle.textContent = 'Displacement-Time ($s-t$) Graph Analysis';
+                    insightMathTag.textContent = 'Slope = Velocity ($v$)';
+                    insightDesc.innerHTML = 'The slope (gradient) of a displacement-time graph represents the <strong class="text-cyan-400">Velocity</strong> of the car. A steeper slope indicates faster motion.';
+                } else if (target === 'vt') {
+                    insightIcon.textContent = '📊';
+                    insightTitle.textContent = 'Velocity-Time ($v-t$) Graph Analysis';
+                    insightMathTag.textContent = 'Slope = Acceleration | Area = Displacement';
+                    insightDesc.innerHTML = 'The slope of a velocity-time graph represents <strong class="text-emerald-400">Acceleration</strong>. The area underneath the curve represents total <strong class="text-cyan-400">Displacement</strong>.';
+                } else if (target === 'at') {
+                    insightIcon.textContent = '📉';
+                    insightTitle.textContent = 'Acceleration-Time ($a-t$) Graph Analysis';
+                    insightMathTag.textContent = 'Area = Change in Velocity (Δv)';
+                    insightDesc.innerHTML = 'The area under an acceleration-time graph represents the <strong class="text-amber-400">Change in Velocity ($\Delta v$)</strong> over that time interval.';
+                }
+                updateUI();
+            });
+        });
+
+        // Modal Controls
+        helpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
+        presetsBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
+        closeHelpBtn.addEventListener('click', () => helpModal.classList.add('hidden'));
+        closeHelpBtnBottom.addEventListener('click', () => helpModal.classList.add('hidden'));
+
+        window.onload = () => {
+            initRoadMarkers();
+            resetSimulation();
+        };
+    </script>
+</body>
+</html>
